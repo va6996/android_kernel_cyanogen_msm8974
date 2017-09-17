@@ -24,7 +24,21 @@
 
 #include "mdss_dsi.h"
 #include "mdss_livedisplay.h"
+/*Gionee xiangzhong 2014-02-20 add for device type check begin*/
+#if defined(CONFIG_GN_DEVICE_TYPE_CHECK)
+#include <linux/gn_device_check.h>
+extern int gn_set_device_info(struct gn_device_info gn_dev_info);
+#endif
+/*Gionee xiangzhong 2014-02-20 add for device type check end*/
+/*Gionee xiangzhong 2013-09-30 add for tps65132*/
+#if defined(CONFIG_GN_Q_BSP_LCD_TPS65132_SUPPORT)
+int lcd_vendor;
+char tps_vol_truly_p[] = {0x00,0x0a};
+char tps_vol_truly_n[] = {0x01,0x0a};
+char tps_vol_sharp_p[] = {0x00,0x11};
+char tps_vol_sharp_n[] = {0x01,0x11};
 
+#endif
 #define DT_CMD_HDR 6
 
 #define MIN_REFRESH_RATE 30
@@ -179,6 +193,34 @@ static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
 	int rc = 0;
 
+/*Gionee xiangzhong 2013-11-11 add for tps65132  begin*/
+#if defined(CONFIG_GN_Q_BSP_LCD_TPS65132_SUPPORT)
+	if (gpio_is_valid(ctrl_pdata->tps_en_gpio)) {
+		rc = gpio_request(ctrl_pdata->tps_en_gpio,
+						"tps_enable");
+		if (rc) {
+			pr_err("request tps_en gpio failed, rc=%d\n",
+				       rc);
+			goto disp_en_gpio_err;
+		}
+	}
+
+#endif
+/*Gionee xiangzhong 2013-11-11 add for tps65132  end*/
+/*Gionee xiangzhong 2013-11-11 add for iovcc  begin*/
+#if defined(CONFIG_GN_Q_BSP_LCD_IOVCC_CONTROL_SUPPORT)
+	if (gpio_is_valid(ctrl_pdata->iovcc_enable_gpio)) {
+		rc = gpio_request(ctrl_pdata->iovcc_enable_gpio,
+						"iovcc_enable");
+		if (rc) {
+			pr_err("request iovcc_en gpio failed, rc=%d\n",
+				       rc);
+			goto disp_en_gpio_err;
+		}
+	}
+
+#endif
+/*Gionee xiangzhong 2013-11-11 add for iovcc  end*/
 	if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
 		rc = gpio_request(ctrl_pdata->disp_en_gpio,
 						"disp_enable");
@@ -219,6 +261,7 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	struct mdss_panel_info *pinfo = NULL;
 	int rc = 0;
+	int i;
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -236,6 +279,14 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 #endif
 	}
 
+/*Gionee xiangzhong 2014-04-30 add for iovcc control by gpio begin*/
+#if defined(CONFIG_GN_Q_BSP_LCD_IOVCC_CONTROL_SUPPORT)
+	if (!gpio_is_valid(ctrl_pdata->iovcc_enable_gpio)) {
+		pr_debug("%s:%d, iovcc enable line not configured\n",
+			   __func__, __LINE__);
+	}
+#endif
+/*Gionee xiangzhong 2014-04-30 add for iovcc control by gpio end*/
 	if (!gpio_is_valid(ctrl_pdata->rst_gpio)) {
 		pr_debug("%s:%d, reset line not configured\n",
 			   __func__, __LINE__);
@@ -248,7 +299,11 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 
 	pr_debug("%s: enable = %d\n", __func__, enable);
 	pinfo = &(ctrl_pdata->panel_data.panel_info);
-
+/*Gionee xiangzhong 2014-04-30 add for iovcc control by gpio begin*/
+#if defined(CONFIG_GN_Q_BSP_LCD_IOVCC_CONTROL_SUPPORT)
+	lcd_vendor_check();
+#endif
+/*Gionee xiangzhong 2014-04-30 add for iovcc control by gpio end*/
 	if (enable) {
 #ifndef CONFIG_MACH_SHENQI_K9
 		rc = mdss_dsi_request_gpios(ctrl_pdata);
@@ -259,7 +314,6 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 		if (!pinfo->panel_power_on) {
 			if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
 				gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
-
 			for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
 				gpio_set_value((ctrl_pdata->rst_gpio),
 					pdata->panel_info.rst_seq[i]);
@@ -277,6 +331,16 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 		}
 #endif
 
+/*Gionee xiangzhong 2013-12-16 add for reset timing begin*/
+#ifdef CONFIG_GN_Q_BSP_LCD_RESET_SUPPORT
+		gpio_set_value((ctrl_pdata->rst_gpio), 1);
+		mdelay(10);
+#else
+		gpio_set_value((ctrl_pdata->rst_gpio), 0);
+		msleep(20);
+#endif
+/*Gionee xiangzhong 2013-12-16 add for reset timing begin*/
+
 		if (gpio_is_valid(ctrl_pdata->mode_gpio)) {
 			if (pinfo->mode_gpio_state == MODE_GPIO_HIGH)
 				gpio_set_value((ctrl_pdata->mode_gpio), 1);
@@ -290,32 +354,43 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			pr_debug("%s: Reset panel done\n", __func__);
 		}
 	} else {
-#ifndef CONFIG_MACH_SHENQI_K9
+/*Gionee xiangzhong 2013-12-16 add for reset timing begin*/
+#ifdef CONFIG_GN_Q_BSP_LCD_RESET_SUPPORT
+#else
 		if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
 			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
 			gpio_free(ctrl_pdata->disp_en_gpio);
 		}
+#endif
+/*Gionee xiangzhong 2013-12-16 add for reset timing end*/
 		gpio_set_value((ctrl_pdata->rst_gpio), 0);
 		gpio_free(ctrl_pdata->rst_gpio);
 		if (gpio_is_valid(ctrl_pdata->mode_gpio))
 			gpio_free(ctrl_pdata->mode_gpio);
-#else
-		if (gpio_is_valid(ctrl_pdata->rst_gpio)) {
-			gpio_set_value((ctrl_pdata->rst_gpio), 0);
-			msleep(20);
-		}
-		if (gpio_is_valid(ctrl_pdata->disp_vsp_gpio) && gpio_is_valid(ctrl_pdata->disp_vsn_gpio)) {
-			gpio_direction_output(ctrl_pdata->disp_vsn_gpio, 0);
-			msleep(1);
-			wmb();
-			gpio_direction_output(ctrl_pdata->disp_vsp_gpio, 0);
-			msleep(20);
-			wmb();
-		}
 
-		if (gpio_is_valid(ctrl_pdata->rst_gpio))
-			gpio_set_value((ctrl_pdata->rst_gpio), 0);
+/*Gionee xiangzhong 2013-12-16 add for reset timing begin*/
+#ifdef CONFIG_GN_Q_BSP_LCD_RESET_SUPPORT
+		if (gpio_is_valid(ctrl_pdata->tps_en_gpio))
+		{
+			gpio_set_value((ctrl_pdata->tps_en_gpio), 0);
+			gpio_free(ctrl_pdata->tps_en_gpio);
+		}
+		mdelay(1);
+		if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
+			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
+			gpio_free(ctrl_pdata->disp_en_gpio);
+		}
+/*Gionee xiangzhong 2014-04-30 add for iovcc control by gpio begin*/
+#if defined(CONFIG_GN_Q_BSP_LCD_IOVCC_CONTROL_SUPPORT)
+		mdelay(100);
+		if (gpio_is_valid(ctrl_pdata->iovcc_enable_gpio)) {
+			gpio_set_value((ctrl_pdata->iovcc_enable_gpio), 1);
+			gpio_free(ctrl_pdata->iovcc_enable_gpio);
+		}
 #endif
+/*Gionee xiangzhong 2014-04-30 add for iovcc control by gpio end*/
+#endif
+/*Gionee xiangzhong 2013-12-16 add for reset timing end*/
 	}
 	return rc;
 }
@@ -374,16 +449,22 @@ static int mdss_dsi_panel_partial_update(struct mdss_panel_data *pdata)
 
 	return rc;
 }
-
-static void mdss_dsi_panel_switch_mode(struct mdss_panel_data *pdata,
-							int mode)
+/*Gionee xiangzhong 2013-12-16 add for lm3630 backlight begin*/
+#ifdef CONFIG_GN_Q_BSP_BACKLIGHT_LM3630_SUPPORT
+void mdss_dsi_panel_lm3630(unsigned int bl_level)
+{
+	set_backlight_lm3630(bl_level);
+}
+#endif
+/*Gionee xiangzhong 2013-12-16 add for lm3630 backlight end*/
+static void mdss_dsi_panel_switch_mode(struct mdss_panel_data *pdata, int mode)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	struct mipi_panel_info *mipi;
 	struct dsi_panel_cmds *pcmds;
 
-	if (pdata == NULL) {
-		pr_err("%s: Invalid input data\n", __func__);
+	if (!pdata || !pdata->next) {
+		pr_err("%s: Invalid panel data\n", __func__);
 		return;
 	}
 
@@ -447,6 +528,14 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 			mdss_dsi_panel_bklt_dcs(sctrl, bl_level);
 		}
 		break;
+/*Gionee xiangzhong 2013-12-16 add for lm3630 backlight begin*/
+#ifdef CONFIG_GN_Q_BSP_BACKLIGHT_LM3630_SUPPORT 
+	case BL_LM3630:
+		mdss_dsi_panel_lm3630(bl_level);
+		break;
+#endif
+/*Gionee xiangzhong 2013-12-16 add for lm3630 backlight end*/
+
 	default:
 		pr_err("%s: Unknown bl_ctrl configuration\n",
 			__func__);
@@ -1132,6 +1221,13 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		} else if (!strncmp(data, "bl_ctrl_dcs", 11)) {
 			ctrl_pdata->bklt_ctrl = BL_DCS_CMD;
 		}
+/*Gionee xiangzhong 2013-12-16 add for lm3630 backlight begin*/
+#ifdef CONFIG_GN_Q_BSP_BACKLIGHT_LM3630_SUPPORT 
+		else if (!strncmp(data, "bl_ctrl_lm3630", 14)) {
+			ctrl_pdata->bklt_ctrl = BL_LM3630;
+		}
+#endif
+/*Gionee xiangzhong 2013-12-16 add for lm3630 backlight end*/
 	}
 	rc = of_property_read_u32(np, "qcom,mdss-brightness-max-level", &tmp);
 	pinfo->brightness_max = (!rc ? tmp : MDSS_MAX_BL_BRIGHTNESS);
@@ -1315,6 +1411,13 @@ int mdss_dsi_panel_init(struct device_node *node,
 	int rc = 0;
 	static const char *panel_name;
 	struct mdss_panel_info *pinfo;
+/*Gionee xiangzhong 2012-09-19 add for device tpye check begin*/
+#if defined(CONFIG_GN_DEVICE_TYPE_CHECK) 
+	static const char *device_panel_name;
+	struct gn_device_info gn_mydev_info;
+	gn_mydev_info.gn_dev_type = GN_DEVICE_TYPE_LCD;
+#endif
+/* Gionee xiangzhong 2012-09-19 add for device tpye check end*/
 
 	if (!node || !ctrl_pdata) {
 		pr_err("%s: Invalid arguments\n", __func__);
@@ -1330,6 +1433,19 @@ int mdss_dsi_panel_init(struct device_node *node,
 						__func__, __LINE__);
 	else
 		pr_info("%s: Panel Name = %s\n", __func__, panel_name);
+/*Gionee xiangzhong 2012-09-19 add for device tpye check begin */ 
+#if defined(CONFIG_GN_DEVICE_TYPE_CHECK) 
+	if(strstr(panel_name, "sharp"))
+		device_panel_name = "sharp_r63419";
+	else if(strstr(panel_name, "jdi"))
+		device_panel_name = "jdi_r63419";
+	else if(strstr(panel_name, "truly"))
+		device_panel_name = "truly_r63419";
+
+	strcpy(gn_mydev_info.name, device_panel_name);
+	gn_set_device_info(gn_mydev_info);
+#endif
+/*Gionee xiangzhong 2012-09-19 add for device tpye check end*/
 
 	rc = mdss_panel_parse_dt(node, ctrl_pdata);
 	if (rc) {

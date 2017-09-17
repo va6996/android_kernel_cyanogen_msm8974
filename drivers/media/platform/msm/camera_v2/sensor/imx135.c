@@ -43,6 +43,7 @@ static struct msm_sensor_power_setting imx135_power_setting[] = {
 	},
 	{
 		.seq_type = SENSOR_GPIO,
+		.seq_val = SENSOR_GPIO_VAF, //add by gionee zhaocuiqin for CR01324957 20140721		
 		.seq_val = SENSOR_GPIO_RESET,
 		.config_val = GPIO_OUT_LOW,
 		.delay = 1,

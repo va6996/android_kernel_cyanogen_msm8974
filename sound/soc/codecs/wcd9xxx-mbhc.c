@@ -108,6 +108,12 @@
  * Invalid voltage range for the detection
  * of plug type with current source
  */
+//Gionee huangzhuolin 20141202 modify for CR01429600 begin
+#ifdef CONFIG_GN_Q_BSP_AUDIO_HEADSET_SUPPORT	
+//#define WCD9XXX_CS_MEAS_INVALD_RANGE_LOW_MV 160
+#define WCD9XXX_CS_MEAS_INVALD_RANGE_LOW_MV 240
+#endif
+//Gionee huangzhuolin 20141202 modify for CR01429600 end
 #define WCD9XXX_CS_MEAS_INVALD_RANGE_LOW_MV 160
 #define WCD9XXX_CS_MEAS_INVALD_RANGE_HIGH_MV 265
 

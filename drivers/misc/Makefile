@@ -56,10 +56,10 @@ obj-$(CONFIG_SENSORS_AK8975)	+= akm8975.o
 obj-$(CONFIG_TSIF) += msm_tsif.o
 msm_tsif-objs := tsif.o
 obj-$(CONFIG_TSIF_CHRDEV) += tsif_chrdev.o
-obj-$(CONFIG_NXP_TFA9890) += tfa9890.o
 obj-$(CONFIG_TSPP) += tspp.o
 obj-$(CONFIG_CI_BRIDGE_SPI) += ci-bridge-spi.o
 obj-$(CONFIG_HAPTIC_ISA1200)		+= isa1200.o
+obj-$(CONFIG_KEY_HALL) 		+= gn_hall_key.o
 obj-$(CONFIG_PMIC8058_PWM) += pmic8058-pwm.o
 obj-$(CONFIG_PMIC8XXX_VIBRATOR) += pm8xxx-vibrator.o
 obj-$(CONFIG_PMIC8XXX_NFC) += pm8xxx-nfc.o
@@ -73,3 +73,6 @@ obj-$(CONFIG_TI_DRV2667) += ti_drv2667.o
 obj-$(CONFIG_QPNP_MISC) += qpnp-misc.o
 obj-$(CONFIG_CCLOGIC)		+= cclogic/
 obj-$(CONFIG_UID_CPUTIME) 	+= uid_cputime.o
+#Gionee luliya 2014-5-22 add for tp device check
+obj-$(CONFIG_GN_DEVICE_TYPE_CHECK) += gn_device_check.o
+

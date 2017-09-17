@@ -168,13 +168,17 @@ static struct wcd9xxx_mbhc_config mbhc_cfg = {
 	.mclk_rate = TAIKO_EXT_CLK_RATE,
 	.gpio = 0,
 	.gpio_irq = 0,
-#ifdef CONFIG_MACH_SHENQI_K9
+//add by zhaocq for audio headset switch begin
+#ifdef CONFIG_GN_Q_BSP_AUDIO_HEADSET_SUPPORT
 	.gpio_level_insert = 0,
+	.detect_extn_cable = true,
+	.micbias_enable_flags = 1 << MBHC_MICBIAS_ENABLE_THRESHOLD_HEADSET | 1 << MBHC_MICBIAS_ENABLE_REGULAR_HEADSET,
 #else
 	.gpio_level_insert = 1,
-#endif
 	.detect_extn_cable = true,
 	.micbias_enable_flags = 1 << MBHC_MICBIAS_ENABLE_THRESHOLD_HEADSET,
+#endif
+//add by zhaocq for audio headset switch end
 	.insert_detect = true,
 	.swap_gnd_mic = NULL,
 	.cs_enable_flags = (1 << MBHC_CS_ENABLE_POLLING |
